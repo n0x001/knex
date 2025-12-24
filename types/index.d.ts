@@ -388,7 +388,7 @@ interface Knex<TRecord extends {} = any, TResult = any[]>
     TRecord2 extends {} = TRecord,
     TResult2 = DeferredKeySelection<TRecord2, never>[]
   >(
-    tableName?: Knex.TableDescriptor | Knex.AliasDict,
+    tableName: Knex.TableDescriptor | Knex.AliasDict,
     options?: TableOptions
   ): Knex.QueryBuilder<TRecord2, TResult2>;
   VERSION: string;
@@ -788,7 +788,7 @@ declare namespace Knex {
     avgDistinct: TypePreservingAggregation<TRecord, TResult>;
 
     increment(
-      columnName: keyof TRecord,
+      columnName: keyof ResolveTableType<TRecord, 'update'>,
       amount?: number
     ): QueryBuilder<TRecord, number>;
     increment(
@@ -796,11 +796,11 @@ declare namespace Knex {
       amount?: number
     ): QueryBuilder<TRecord, number>;
     increment(columns: {
-      [column in keyof TRecord]: number;
+      [column in keyof ResolveTableType<TRecord, 'update'>]: number;
     }): QueryBuilder<TRecord, number>;
 
     decrement(
-      columnName: keyof TRecord,
+      columnName: keyof ResolveTableType<TRecord, 'update'>,
       amount?: number
     ): QueryBuilder<TRecord, number>;
     decrement(
@@ -808,7 +808,7 @@ declare namespace Knex {
       amount?: number
     ): QueryBuilder<TRecord, number>;
     decrement(columns: {
-      [column in keyof TRecord]: number;
+      [column in keyof ResolveTableType<TRecord, 'update'>]: number;
     }): QueryBuilder<TRecord, number>;
 
     // Analytics
@@ -822,9 +822,9 @@ declare namespace Knex {
       DeferredKeySelection.AddUnionMember<UnwrapArrayMember<TResult>, undefined>
     >;
 
-    pluck<K extends keyof TRecord>(
+    pluck<K extends keyof ResolveTableType<TRecord>>(
       column: K
-    ): QueryBuilder<TRecord, TRecord[K][]>;
+    ): QueryBuilder<TRecord, ResolveTableType<TRecord>[K][]>;
     pluck<TResult2 extends {}>(column: string): QueryBuilder<TRecord, TResult2>;
 
     insert(
@@ -1954,12 +1954,12 @@ declare namespace Knex {
 
   interface OrderBy<TRecord extends {} = any, TResult = unknown[]> {
     (
-      columnName: keyof TRecord | QueryBuilder,
+      columnName: keyof TRecord | QueryBuilder | Raw,
       order?: 'asc' | 'desc',
       nulls?: 'first' | 'last'
     ): QueryBuilder<TRecord, TResult>;
     (
-      columnName: string | QueryBuilder,
+      columnName: string | QueryBuilder | Raw,
       order?: string,
       nulls?: string
     ): QueryBuilder<TRecord, TResult>;
@@ -1967,7 +1967,7 @@ declare namespace Knex {
       columnDefs: Array<
         | keyof TRecord
         | Readonly<{
-            column: keyof TRecord | QueryBuilder;
+            column: keyof TRecord | QueryBuilder | Raw;
             order?: 'asc' | 'desc';
             nulls?: 'first' | 'last';
           }>
@@ -1977,7 +1977,7 @@ declare namespace Knex {
       columnDefs: Array<
         | string
         | Readonly<{
-            column: string | QueryBuilder;
+            column: string | QueryBuilder | Raw;
             order?: string;
             nulls?: string;
           }>
@@ -2318,6 +2318,8 @@ declare namespace Knex {
     doNotRejectOnRollback?: boolean;
     connection?: any;
     readOnly?: boolean;
+    /** sqlite3 only */
+    enforceForeignCheck?: boolean | null;
   }
 
   interface Transaction<TRecord extends {} = any, TResult = any[]>
@@ -2610,7 +2612,14 @@ declare namespace Knex {
   type lengthOperator = '>' | '<' | '<=' | '>=' | '!=' | '=';
 
   interface ColumnBuilder {
-    index(indexName?: string): ColumnBuilder;
+    index(
+      indexName?: string,
+      options?: Readonly<{
+        indexType?: string;
+        storageEngineIndexType?: storageEngineIndexType;
+        predicate?: QueryBuilder;
+      }>
+    ): ColumnBuilder;
     primary(
       options?: Readonly<{
         constraintName?: string;
